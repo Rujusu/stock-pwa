@@ -16,15 +16,14 @@
     button { padding: 5px 10px; margin: 0 2px; }
   </style>
   <script type="module">
-    // Import Firebase SDK
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
+  authDomain: "pos-system-f6930.firebaseapp.com",
+  projectId: "pos-system-f6930",
+  storageBucket: "pos-system-f6930.appspot.com",
+  messagingSenderId: "753361295709",
+  appId: "1:753361295709:web:bbb5e062470a9d9a94b0b4"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -77,7 +76,7 @@ function renderTable() {
   });
 }
 
-window.addItem = async function () {
+async function addItem() {
   const name = document.getElementById("itemName").value.trim();
   const qty = parseInt(document.getElementById("itemQty").value);
   if (!name || isNaN(qty)) return alert("Enter valid name and quantity");
@@ -86,16 +85,7 @@ window.addItem = async function () {
   document.getElementById("itemQty").value = 1;
 }
 
-window.changeQty = async function (id, currentQty, delta) {
-  const newQty = Math.max(0, currentQty + delta);
-  await updateQty(id, newQty);
-}
-
-window.removeItem = async function (id) {
-  await deleteItem(id);
-}
-
-window.exportCSV = function () {
+function exportCSV() {
   let csv = 'Item,Quantity\n';
   stock.forEach(item => {
     csv += `${item.name},${item.qty}\n`;
@@ -109,12 +99,24 @@ window.exportCSV = function () {
   URL.revokeObjectURL(url);
 }
 
+window.changeQty = async function (id, currentQty, delta) {
+  const newQty = Math.max(0, currentQty + delta);
+  await updateQty(id, newQty);
+}
+
+window.removeItem = async function (id) {
+  await deleteItem(id);
+}
+
+document.getElementById("addBtn").addEventListener("click", addItem);
+document.getElementById("exportBtn").addEventListener("click", exportCSV);
+
 loadStock();
 
   </script>
 </head>
 <body>
-  <h1>Stock Counting System</h1><label>Item Name: <input id="itemName" type="text"></label> <label>Quantity: <input id="itemQty" type="number" value="1"></label> <button onclick="addItem()">Add Item</button> <button onclick="exportCSV()">Export CSV</button>
+  <h1>Stock Counting System</h1><label>Item Name: <input id="itemName" type="text"></label> <label>Quantity: <input id="itemQty" type="number" value="1"></label> <button id="addBtn">Add Item</button> <button id="exportBtn">Export CSV</button>
 
   <table id="stockTable">
     <thead>
