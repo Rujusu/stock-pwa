@@ -15,11 +15,12 @@
   <button onclick="location.href='index.html'">Back to Home</button>
 
   <div>
-    <h3>Create New Recipe</h3>
+    <h3 id="formTitle">Create New Recipe</h3>
     <label>Recipe Name: <input type="text" id="recipeName"></label>
     <div id="ingredients"></div>
     <button onclick="addIngredientRow()">+ Add Ingredient</button><br><br>
     <button onclick="saveRecipe()">💾 Save Recipe</button>
+    <button onclick="cancelEdit()" id="cancelBtn" class="hidden">Cancel Edit</button>
   </div>
 
   <div>
@@ -29,7 +30,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, deleteDoc, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
@@ -45,6 +46,7 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
     let stockItems = [];
+    let editId = null;
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) return location.href = 'index.html';
@@ -76,6 +78,7 @@
           <ul>
             ${data.ingredients.map(i => `<li>${i.qty} ${i.unit} ${i.name}</li>`).join('')}
           </ul>
+          <button onclick="editRecipe('${docSnap.id}')">✏ Edit</button>
           <button onclick="deleteRecipe('${docSnap.id}')">🗑 Delete</button>
         `;
         recipeList.appendChild(card);
@@ -138,10 +141,18 @@
 
       if (ingredients.length === 0) return alert("Add at least one valid ingredient");
 
-      await addDoc(collection(db, "recipes"), { name, ingredients });
+      if (editId) {
+        await updateDoc(doc(db, "recipes", editId), { name, ingredients });
+        editId = null;
+      } else {
+        await addDoc(collection(db, "recipes"), { name, ingredients });
+      }
+
       alert("Recipe saved ✅");
       document.getElementById("recipeName").value = "";
       document.getElementById("ingredients").innerHTML = "";
+      document.getElementById("formTitle").innerText = "Create New Recipe";
+      document.getElementById("cancelBtn").classList.add("hidden");
       addIngredientRow();
       loadRecipes();
     }
@@ -150,6 +161,59 @@
       if (!confirm("Delete this recipe?")) return;
       await deleteDoc(doc(db, "recipes", id));
       loadRecipes();
+    }
+
+    window.editRecipe = async function (id) {
+      const recipeDoc = await getDoc(doc(db, "recipes", id));
+      if (!recipeDoc.exists()) return;
+      const data = recipeDoc.data();
+      editId = id;
+      document.getElementById("recipeName").value = data.name;
+      document.getElementById("ingredients").innerHTML = "";
+      document.getElementById("formTitle").innerText = "Edit Recipe";
+      document.getElementById("cancelBtn").classList.remove("hidden");
+
+      data.ingredients.forEach(ing => {
+        const container = document.getElementById("ingredients");
+        const row = document.createElement("div");
+        row.className = "ingredient-row";
+
+        const select = document.createElement("select");
+        stockItems.forEach(item => {
+          const opt = document.createElement("option");
+          opt.value = item.id;
+          opt.textContent = item.name;
+          if (item.id === ing.itemId) opt.selected = true;
+          select.appendChild(opt);
+        });
+
+        const qty = document.createElement("input");
+        qty.type = "number";
+        qty.min = 0;
+        qty.value = ing.qty;
+
+        const unit = document.createElement("span");
+        unit.textContent = ing.unit;
+
+        select.addEventListener("change", () => {
+          const selected = stockItems.find(i => i.id === select.value);
+          unit.textContent = selected?.unitLabel || "";
+        });
+
+        row.appendChild(select);
+        row.appendChild(qty);
+        row.appendChild(unit);
+        container.appendChild(row);
+      });
+    }
+
+    window.cancelEdit = function () {
+      editId = null;
+      document.getElementById("recipeName").value = "";
+      document.getElementById("ingredients").innerHTML = "";
+      document.getElementById("formTitle").innerText = "Create New Recipe";
+      document.getElementById("cancelBtn").classList.add("hidden");
+      addIngredientRow();
     }
   </script>
 </body>
