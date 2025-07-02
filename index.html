@@ -38,6 +38,7 @@
 
     let stock = [];
     let activeCategory = "All";
+    let searchQuery = "";
 
     async function loadStock() {
       stock = [];
@@ -96,7 +97,11 @@
       const tbody = document.querySelector("#stockTable tbody");
       tbody.innerHTML = "";
 
-      const filtered = activeCategory === "All" ? stock : stock.filter(i => i.category === activeCategory);
+      const filtered = stock.filter(i => {
+        const matchCategory = activeCategory === "All" || i.category === activeCategory;
+        const matchSearch = i.name.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchCategory && matchSearch;
+      });
 
       filtered.forEach((item) => {
         const row = document.createElement("tr");
@@ -178,9 +183,16 @@
       renderSummary();
     }
 
+    window.setSearchQuery = function (value) {
+      searchQuery = value;
+      renderTable();
+      renderSummary();
+    }
+
     document.getElementById("addBtn").addEventListener("click", addItem);
     document.getElementById("exportBtn").addEventListener("click", exportCSV);
     document.getElementById("categoryFilter").addEventListener("change", e => setCategoryFilter(e.target.value));
+    document.getElementById("searchBox").addEventListener("input", e => setSearchQuery(e.target.value));
 
     loadStock();
   </script>
@@ -199,6 +211,7 @@
   <p>
     Filter by Category:
     <select id="categoryFilter"></select>
+    <label>Search: <input id="searchBox" type="text" placeholder="Search by name"></label>
   </p>
 
   <p id="summary" style="margin-top: 10px; font-weight: bold;"></p>
