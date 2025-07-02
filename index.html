@@ -9,7 +9,7 @@
     }
   </script>
   <meta charset="UTF-8">
-  <title>Simple Stock Counter</title>
+  <title>Stock Counter with Login</title>
   <style>
     body { font-family: Arial; padding: 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
@@ -18,10 +18,12 @@
     .critical { background-color: #ffcccc; }
     .low { background-color: #fff3cd; }
     .ok { background-color: #d4edda; }
+    .hidden { display: none; }
   </style>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
@@ -34,11 +36,15 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
+
     const stockRef = collection(db, 'stock');
 
     let stock = [];
     let activeCategory = "All";
     let searchQuery = "";
+    let currentUser = null;
+    let currentRole = "staff";
 
     async function loadStock() {
       stock = [];
@@ -110,13 +116,14 @@
           <td>${item.name}<br><small>${item.category || "Uncategorized"}</small></td>
           <td>${item.qty}</td>
           <td>
+            ${currentRole === 'admin' ? `
             <label>Critical:<input type="number" value="${item.critical}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'critical')"></label><br>
-            <label>Low:<input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"></label>
+            <label>Low:<input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"></label>` : '-'}
           </td>
           <td>
             <button onclick="changeQty('${item.id}', ${item.qty}, 1)">+</button>
             <button onclick="changeQty('${item.id}', ${item.qty}, -1)">-</button>
-            <button onclick="removeItem('${item.id}')">Delete</button>
+            ${currentRole === 'admin' ? `<button onclick="removeItem('${item.id}')">Delete</button>` : ''}
           </td>`;
         tbody.appendChild(row);
       });
@@ -144,20 +151,6 @@
       document.getElementById("criticalQty").value = 2;
       document.getElementById("lowQty").value = 5;
       document.getElementById("itemCategory").value = "";
-    }
-
-    function exportCSV() {
-      let csv = 'Item,Quantity,Category\n';
-      stock.forEach(item => {
-        csv += `${item.name},${item.qty},${item.category || ""}\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'stock.csv';
-      a.click();
-      URL.revokeObjectURL(url);
     }
 
     window.changeQty = async function (id, currentQty, delta) {
@@ -189,43 +182,71 @@
       renderSummary();
     }
 
-    document.getElementById("addBtn").addEventListener("click", addItem);
-    document.getElementById("exportBtn").addEventListener("click", exportCSV);
-    document.getElementById("categoryFilter").addEventListener("change", e => setCategoryFilter(e.target.value));
-    document.getElementById("searchBox").addEventListener("input", e => setSearchQuery(e.target.value));
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        currentUser = result.user;
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        currentRole = userDoc.exists() ? userDoc.data().role : 'staff';
+        document.getElementById("loginForm").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        document.getElementById("logoutBtn").classList.remove("hidden");
+        if (currentRole === 'admin') document.getElementById("adminTools").classList.remove("hidden");
+        loadStock();
+      } catch (e) {
+        alert("Login failed: " + e.message);
+      }
+    });
 
-    loadStock();
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await signOut(auth);
+      location.reload();
+    });
   </script>
 </head>
 <body>
-  <h1>Stock Counting System</h1>
+  <div id="loginForm">
+    <h2>Login</h2>
+    <input id="email" type="email" placeholder="Email"><br>
+    <input id="password" type="password" placeholder="Password"><br>
+    <button id="loginBtn">Login</button>
+  </div>
 
-  <label>Item Name: <input id="itemName" type="text"></label>
-  <label>Quantity: <input id="itemQty" type="number" value="1"></label>
-  <label>Critical: <input id="criticalQty" type="number" value="2"></label>
-  <label>Low: <input id="lowQty" type="number" value="5"></label>
-  <label>Category: <input id="itemCategory" type="text" placeholder="e.g. Snacks"></label>
-  <button id="addBtn">Add Item</button>
-  <button id="exportBtn">Export CSV</button>
+  <div id="app" class="hidden">
+    <h1>Stock Counting System</h1>
+    <button id="logoutBtn" class="hidden">Logout</button>
 
-  <p>
-    Filter by Category:
-    <select id="categoryFilter"></select>
-    <label>Search: <input id="searchBox" type="text" placeholder="Search by name"></label>
-  </p>
+    <div id="adminTools" class="hidden">
+      <label>Item Name: <input id="itemName" type="text"></label>
+      <label>Quantity: <input id="itemQty" type="number" value="1"></label>
+      <label>Critical: <input id="criticalQty" type="number" value="2"></label>
+      <label>Low: <input id="lowQty" type="number" value="5"></label>
+      <label>Category: <input id="itemCategory" type="text" placeholder="e.g. Snacks"></label>
+      <button id="addBtn">Add Item</button>
+      <button id="exportBtn">Export CSV</button>
+    </div>
 
-  <p id="summary" style="margin-top: 10px; font-weight: bold;"></p>
+    <p>
+      Filter by Category:
+      <select id="categoryFilter"></select>
+      <label>Search: <input id="searchBox" type="text" placeholder="Search by name"></label>
+    </p>
 
-  <table id="stockTable">
-    <thead>
-      <tr>
-        <th>Item</th>
-        <th>Quantity</th>
-        <th>Thresholds</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <p id="summary" style="margin-top: 10px; font-weight: bold;"></p>
+
+    <table id="stockTable">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Quantity</th>
+          <th>Thresholds</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </body>
 </html>
