@@ -37,6 +37,7 @@
     const stockRef = collection(db, 'stock');
 
     let stock = [];
+    let activeCategory = "All";
 
     async function loadStock() {
       stock = [];
@@ -44,12 +45,13 @@
       snapshot.forEach(docSnap => {
         stock.push({ id: docSnap.id, ...docSnap.data() });
       });
+      renderCategoryOptions();
       renderTable();
       renderSummary();
     }
 
-    async function saveItem(name, qty, critical = 2, low = 5, ok = 10) {
-      await addDoc(stockRef, { name, qty, critical, low, ok });
+    async function saveItem(name, qty, critical = 2, low = 5, ok = 10, category = "Uncategorized") {
+      await addDoc(stockRef, { name, qty, critical, low, ok, category });
       loadStock();
     }
 
@@ -77,15 +79,30 @@
       return 'ok';
     }
 
+    function renderCategoryOptions() {
+      const categorySet = new Set(stock.map(item => item.category || "Uncategorized"));
+      const categorySelect = document.getElementById("categoryFilter");
+      categorySelect.innerHTML = '<option value="All">All</option>';
+      [...categorySet].sort().forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
+      categorySelect.value = activeCategory;
+    }
+
     function renderTable() {
       const tbody = document.querySelector("#stockTable tbody");
       tbody.innerHTML = "";
 
-      stock.forEach((item) => {
+      const filtered = activeCategory === "All" ? stock : stock.filter(i => i.category === activeCategory);
+
+      filtered.forEach((item) => {
         const row = document.createElement("tr");
         row.className = getStatusClass(item);
         row.innerHTML = `
-          <td>${item.name}</td>
+          <td>${item.name}<br><small>${item.category || "Uncategorized"}</small></td>
           <td>${item.qty}</td>
           <td>
             <label>Critical:<input type="number" value="${item.critical}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'critical')"></label><br>
@@ -116,19 +133,21 @@
       const critical = parseInt(document.getElementById("criticalQty").value);
       const low = parseInt(document.getElementById("lowQty").value);
       const ok = parseInt(document.getElementById("okQty").value);
+      const category = document.getElementById("itemCategory").value.trim() || "Uncategorized";
       if (!name || isNaN(qty) || isNaN(critical) || isNaN(low) || isNaN(ok)) return alert("Enter valid inputs");
-      await saveItem(name, qty, critical, low, ok);
+      await saveItem(name, qty, critical, low, ok, category);
       document.getElementById("itemName").value = "";
       document.getElementById("itemQty").value = 1;
       document.getElementById("criticalQty").value = 2;
       document.getElementById("lowQty").value = 5;
       document.getElementById("okQty").value = 10;
+      document.getElementById("itemCategory").value = "";
     }
 
     function exportCSV() {
-      let csv = 'Item,Quantity\n';
+      let csv = 'Item,Quantity,Category\n';
       stock.forEach(item => {
-        csv += `${item.name},${item.qty}\n`;
+        csv += `${item.name},${item.qty},${item.category || ""}\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -157,8 +176,15 @@
       await updateThresholds(id, critical, low, ok);
     }
 
+    window.setCategoryFilter = function (value) {
+      activeCategory = value;
+      renderTable();
+      renderSummary();
+    }
+
     document.getElementById("addBtn").addEventListener("click", addItem);
     document.getElementById("exportBtn").addEventListener("click", exportCSV);
+    document.getElementById("categoryFilter").addEventListener("change", e => setCategoryFilter(e.target.value));
 
     loadStock();
   </script>
@@ -171,8 +197,14 @@
   <label>Critical: <input id="criticalQty" type="number" value="2"></label>
   <label>Low: <input id="lowQty" type="number" value="5"></label>
   <label>OK: <input id="okQty" type="number" value="10"></label>
+  <label>Category: <input id="itemCategory" type="text" placeholder="e.g. Snacks"></label>
   <button id="addBtn">Add Item</button>
   <button id="exportBtn">Export CSV</button>
+
+  <p>
+    Filter by Category:
+    <select id="categoryFilter"></select>
+  </p>
 
   <p id="summary" style="margin-top: 10px; font-weight: bold;"></p>
 
