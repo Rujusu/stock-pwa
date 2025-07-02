@@ -19,6 +19,8 @@
   </style>
 </head>
 <body>
+  <div id="loading" style="padding:20px">Loading...</div>
+
   <div class="sidebar hidden" id="sidebar">
     <h3>Menu</h3>
     <ul id="menuList"></ul>
@@ -57,6 +59,8 @@
     const loginForm = document.getElementById("loginForm");
 
     onAuthStateChanged(auth, async (user) => {
+      document.getElementById("loading")?.remove();
+
       if (!user) {
         sidebar.classList.add("hidden");
         mainPanel.classList.remove("hidden");
