@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Recipes</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Recipe Management (Admin Only)</h1>
+  <button onclick="location.href='index.html'">Back to Home</button>
+
+  <p>
+    <label for="itemSelect">Select an item:</label>
+    <select id="itemSelect">
+      <option>Loading...</option>
+    </select>
+  </p>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
+      authDomain: "pos-system-f6930.firebaseapp.com",
+      projectId: "pos-system-f6930",
+      storageBucket: "pos-system-f6930.appspot.com",
+      messagingSenderId: "753361295709",
+      appId: "1:753361295709:web:bbb5e062470a9d9a94b0b4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return location.href = 'index.html';
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const role = userDoc.exists() ? userDoc.data().role : 'staff';
+      if (role !== 'admin') return location.href = 'index.html';
+      loadItemNames();
+    });
+
+    async function loadItemNames() {
+      const itemSelect = document.getElementById("itemSelect");
+      itemSelect.innerHTML = "";
+      const stockRef = collection(db, 'stock');
+      const snapshot = await getDocs(stockRef);
+      snapshot.forEach(doc => {
+        const option = document.createElement("option");
+        option.value = doc.id;
+        option.textContent = doc.data().name;
+        itemSelect.appendChild(option);
+      });
+    }
+  </script>
+</body>
+</html>
