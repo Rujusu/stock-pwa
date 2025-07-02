@@ -84,10 +84,9 @@
 
     document.getElementById("logoutBtn").addEventListener("click", async () => {
       await signOut(auth);
-document.getElementById("sidebar").classList.add("hidden");
-document.getElementById("mainPanel").classList.remove("hidden");
-document.getElementById("loginForm").classList.remove("hidden");
-
+      sidebar.classList.add("hidden");
+      mainPanel.classList.remove("hidden");
+      loginForm.classList.remove("hidden");
     });
 
     function showMenu(role) {
