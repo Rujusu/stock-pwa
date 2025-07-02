@@ -2,14 +2,8 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="manifest.json">
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js')
-        .then(() => console.log('✅ Service Worker registered!'));
-    }
-  </script>
   <meta charset="UTF-8">
-  <title>Stock Counter with Login</title>
+  <title>Stock Counting System</title>
   <style>
     body { font-family: Arial; padding: 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
@@ -19,6 +13,8 @@
     .low { background-color: #fff3cd; }
     .ok { background-color: #d4edda; }
     .hidden { display: none; }
+    nav { margin-bottom: 20px; }
+    nav a { margin-right: 15px; text-decoration: none; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -31,7 +27,11 @@
 
   <div id="app" class="hidden">
     <h1>Stock Counting System</h1>
-    <button id="logoutBtn" class="hidden">Logout</button>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="recipes.html" id="recipesLink" class="hidden">Recipes</a>
+      <button id="logoutBtn" class="hidden" style="float:right">Logout</button>
+    </nav>
 
     <div id="adminTools" class="hidden">
       <label>Item Name: <input id="itemName" type="text"></label>
@@ -108,90 +108,6 @@
       renderSummary();
     }
 
-    async function saveItem(name, qty, unitValue, unitLabel, critical = 2, low = 5, category = "Uncategorized") {
-      const total = qty * unitValue;
-      await addDoc(stockRef, { name, qty, unitValue, unitLabel, total, critical, low, category });
-      loadStock();
-    }
-
-    async function updateQty(id, newQty) {
-      const item = stock.find(i => i.id === id);
-      const itemRef = doc(db, 'stock', id);
-      const newTotal = newQty * (item.unitValue || 1);
-      await updateDoc(itemRef, { qty: newQty, total: newTotal });
-      loadStock();
-    }
-
-    async function updateThresholds(id, critical, low) {
-      const itemRef = doc(db, 'stock', id);
-      await updateDoc(itemRef, { critical, low });
-      loadStock();
-    }
-
-    async function deleteItem(id) {
-      const itemRef = doc(db, 'stock', id);
-      await deleteDoc(itemRef);
-      loadStock();
-    }
-
-    function getStatusClass(item) {
-      if (item.qty < item.critical) return 'critical';
-      if (item.qty < item.low) return 'low';
-      return 'ok';
-    }
-
-    function renderCategoryOptions() {
-      const categorySet = new Set(stock.map(item => item.category || "Uncategorized"));
-      const categorySelect = document.getElementById("categoryFilter");
-      categorySelect.innerHTML = '<option value="All">All</option>';
-      [...categorySet].sort().forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        categorySelect.appendChild(option);
-      });
-      categorySelect.value = activeCategory;
-    }
-
-    function renderTable() {
-      const tbody = document.querySelector("#stockTable tbody");
-      tbody.innerHTML = "";
-
-      const filtered = stock.filter(i => {
-        const matchCategory = activeCategory === "All" || i.category === activeCategory;
-        const matchSearch = i.name.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchCategory && matchSearch;
-      });
-
-      filtered.forEach((item) => {
-        const row = document.createElement("tr");
-        row.className = getStatusClass(item);
-        row.innerHTML = `
-          <td>${item.name}<br><small>${item.category || "Uncategorized"}</small></td>
-          <td>${item.qty} × ${item.unitValue || 1}${item.unitLabel ? ' ' + item.unitLabel : ''} = <b>${item.total || item.qty}${item.unitLabel ? ' ' + item.unitLabel : ''}</b></td>
-          <td>
-            ${currentRole === 'admin' ? `
-            <label>Critical:<input type="number" value="${item.critical}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'critical')"></label><br>
-            <label>Low:<input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"></label>` : '-'}
-          </td>
-          <td>
-            <button onclick="changeQty('${item.id}', ${item.qty}, 1)">+</button>
-            <button onclick="changeQty('${item.id}', ${item.qty}, -1)">-</button>
-            ${currentRole === 'admin' ? `<button onclick="removeItem('${item.id}')">Delete</button>` : ''}
-          </td>`;
-        tbody.appendChild(row);
-      });
-    }
-
-    function renderSummary() {
-      const summary = { critical: 0, low: 0, ok: 0 };
-      stock.forEach(item => {
-        const cls = getStatusClass(item);
-        summary[cls]++;
-      });
-      document.getElementById("summary").innerText = `Critical: ${summary.critical} | Low: ${summary.low} | OK: ${summary.ok}`;
-    }
-
     window.addItem = async function () {
       const name = document.getElementById("itemName").value.trim();
       const qty = parseInt(document.getElementById("itemQty").value);
@@ -201,7 +117,8 @@
       const low = parseInt(document.getElementById("lowQty").value);
       const category = document.getElementById("itemCategory").value.trim() || "Uncategorized";
       if (!name || isNaN(qty) || isNaN(unitValue) || isNaN(critical) || isNaN(low)) return alert("Enter valid inputs");
-      await saveItem(name, qty, unitValue, unitLabel, critical, low, category);
+      const total = qty * unitValue;
+      await addDoc(stockRef, { name, qty, unitValue, unitLabel, total, critical, low, category });
       document.getElementById("itemName").value = "";
       document.getElementById("itemQty").value = 1;
       document.getElementById("itemUnitValue").value = 1;
@@ -209,23 +126,7 @@
       document.getElementById("criticalQty").value = 2;
       document.getElementById("lowQty").value = 5;
       document.getElementById("itemCategory").value = "";
-    }
-
-    window.changeQty = async function (id, currentQty, delta) {
-      const newQty = Math.max(0, currentQty + delta);
-      await updateQty(id, newQty);
-    }
-
-    window.removeItem = async function (id) {
-      await deleteItem(id);
-    }
-
-    window.updateItemThreshold = async function (id, value, type) {
-      const item = stock.find(i => i.id === id);
-      if (!item) return;
-      const critical = type === 'critical' ? parseInt(value) : item.critical;
-      const low = type === 'low' ? parseInt(value) : item.low;
-      await updateThresholds(id, critical, low);
+      loadStock();
     }
 
     window.setCategoryFilter = function (value) {
@@ -248,10 +149,16 @@
         currentUser = result.user;
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         currentRole = userDoc.exists() ? userDoc.data().role : 'staff';
+
         document.getElementById("loginForm").classList.add("hidden");
         document.getElementById("app").classList.remove("hidden");
         document.getElementById("logoutBtn").classList.remove("hidden");
-        if (currentRole === 'admin') document.getElementById("adminTools").classList.remove("hidden");
+
+        if (currentRole === 'admin') {
+          document.getElementById("adminTools").classList.remove("hidden");
+          document.getElementById("recipesLink").classList.remove("hidden");
+        }
+
         loadStock();
       } catch (e) {
         alert("Login failed: " + e.message);
@@ -260,10 +167,10 @@
 
     document.getElementById("logoutBtn").addEventListener("click", async () => {
       await signOut(auth);
-      location.reload();
+      location.href = "index.html";
     });
 
-    document.getElementById("addItemBtn").addEventListener("click", addItem);
+    document.getElementById("addItemBtn").addEventListener("click", () => window.addItem());
   </script>
 </body>
 </html>
