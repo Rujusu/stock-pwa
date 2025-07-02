@@ -45,6 +45,7 @@
         stock.push({ id: docSnap.id, ...docSnap.data() });
       });
       renderTable();
+      renderSummary();
     }
 
     async function saveItem(name, qty, low = 5, ok = 10) {
@@ -55,6 +56,12 @@
     async function updateQty(id, newQty) {
       const itemRef = doc(db, 'stock', id);
       await updateDoc(itemRef, { qty: newQty });
+      loadStock();
+    }
+
+    async function updateThresholds(id, low, ok) {
+      const itemRef = doc(db, 'stock', id);
+      await updateDoc(itemRef, { low, ok });
       loadStock();
     }
 
@@ -81,12 +88,25 @@
           <td>${item.name}</td>
           <td>${item.qty}</td>
           <td>
+            <input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"> Low<br>
+            <input type="number" value="${item.ok}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'ok')"> OK
+          </td>
+          <td>
             <button onclick="changeQty('${item.id}', ${item.qty}, 1)">+</button>
             <button onclick="changeQty('${item.id}', ${item.qty}, -1)">-</button>
             <button onclick="removeItem('${item.id}')">Delete</button>
           </td>`;
         tbody.appendChild(row);
       });
+    }
+
+    function renderSummary() {
+      const summary = { critical: 0, low: 0, ok: 0 };
+      stock.forEach(item => {
+        const cls = getStatusClass(item);
+        summary[cls]++;
+      });
+      document.getElementById("summary").innerText = `Critical: ${summary.critical} | Low: ${summary.low} | OK: ${summary.ok}`;
     }
 
     async function addItem() {
@@ -125,6 +145,14 @@
       await deleteItem(id);
     }
 
+    window.updateItemThreshold = async function (id, value, type) {
+      const item = stock.find(i => i.id === id);
+      if (!item) return;
+      const low = type === 'low' ? parseInt(value) : item.low;
+      const ok = type === 'ok' ? parseInt(value) : item.ok;
+      await updateThresholds(id, low, ok);
+    }
+
     document.getElementById("addBtn").addEventListener("click", addItem);
     document.getElementById("exportBtn").addEventListener("click", exportCSV);
 
@@ -141,11 +169,14 @@
   <button id="addBtn">Add Item</button>
   <button id="exportBtn">Export CSV</button>
 
+  <p id="summary" style="margin-top: 10px; font-weight: bold;"></p>
+
   <table id="stockTable">
     <thead>
       <tr>
         <th>Item</th>
         <th>Quantity</th>
+        <th>Thresholds</th>
         <th>Actions</th>
       </tr>
     </thead>
