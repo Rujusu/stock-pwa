@@ -4,12 +4,7 @@
   <meta charset="UTF-8">
   <title>POS System Login</title>
   <link rel="manifest" href="manifest.json">
-  <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js?cache=' + Date.now())
-      .then(() => console.log('✅ Service Worker registered with timestamp'));
-  }
-   </script>
+
   <style>
     body { font-family: Arial; margin: 0; display: flex; height: 100vh; }
     .sidebar { width: 200px; background: #f4f4f4; padding: 20px; }
@@ -112,5 +107,11 @@
       }
     }
   </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js?cache=' + Date.now())
+      .then(() => console.log('✅ Service Worker registered with timestamp'));
+  }
+</script>
 </body>
 </html>
