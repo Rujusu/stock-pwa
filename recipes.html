@@ -6,25 +6,31 @@
   <style>
     body { font-family: Arial; padding: 20px; }
     .hidden { display: none; }
+    .ingredient-row { margin-bottom: 10px; }
+    .recipe-card { border: 1px solid #ccc; padding: 10px; margin-top: 15px; }
   </style>
 </head>
 <body>
-  <div id="app" class="hidden">
-    <h1>Recipe Management (Admin Only)</h1>
-    <button onclick="location.href='stock.html'">Stock</button>
-    <button id="logoutBtn">Logout</button>
-    <p>
-      <label for="itemSelect">Select an item:</label>
-      <select id="itemSelect">
-        <option>Loading...</option>
-      </select>
-    </p>
+  <h1>Recipe Management (Admin Only)</h1>
+  <button onclick="location.href='index.html'">Back to Home</button>
+
+  <div>
+    <h3>Create New Recipe</h3>
+    <label>Recipe Name: <input type="text" id="recipeName"></label>
+    <div id="ingredients"></div>
+    <button onclick="addIngredientRow()">+ Add Ingredient</button><br><br>
+    <button onclick="saveRecipe()">💾 Save Recipe</button>
+  </div>
+
+  <div>
+    <h3>Saved Recipes</h3>
+    <div id="recipeList"></div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
@@ -38,34 +44,112 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
-
-    const appDiv = document.getElementById("app");
+    let stockItems = [];
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) return location.href = 'index.html';
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const role = userDoc.exists() ? userDoc.data().role : 'staff';
       if (role !== 'admin') return location.href = 'index.html';
-      appDiv.classList.remove("hidden");
-      loadItemNames();
-    });
-
-    document.getElementById("logoutBtn").addEventListener("click", async () => {
-      await signOut(auth);
-      appDiv.classList.add("hidden");
+      await loadItemNames();
+      await loadRecipes();
+      addIngredientRow();
     });
 
     async function loadItemNames() {
-      const itemSelect = document.getElementById("itemSelect");
-      itemSelect.innerHTML = "";
       const stockRef = collection(db, 'stock');
       const snapshot = await getDocs(stockRef);
-      snapshot.forEach(doc => {
-        const option = document.createElement("option");
-        option.value = doc.id;
-        option.textContent = doc.data().name;
-        itemSelect.appendChild(option);
+      stockItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async function loadRecipes() {
+      const recipeList = document.getElementById("recipeList");
+      recipeList.innerHTML = "";
+      const recipesRef = collection(db, "recipes");
+      const snapshot = await getDocs(recipesRef);
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const card = document.createElement("div");
+        card.className = "recipe-card";
+        card.innerHTML = `
+          <strong>${data.name}</strong>
+          <ul>
+            ${data.ingredients.map(i => `<li>${i.qty} ${i.unit} ${i.name}</li>`).join('')}
+          </ul>
+          <button onclick="deleteRecipe('${docSnap.id}')">🗑 Delete</button>
+        `;
+        recipeList.appendChild(card);
       });
+    }
+
+    window.addIngredientRow = function () {
+      const container = document.getElementById("ingredients");
+      const row = document.createElement("div");
+      row.className = "ingredient-row";
+
+      const select = document.createElement("select");
+      stockItems.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.name;
+        select.appendChild(opt);
+      });
+
+      const qty = document.createElement("input");
+      qty.type = "number";
+      qty.min = 0;
+      qty.placeholder = "Qty";
+
+      const unit = document.createElement("span");
+      unit.textContent = "";
+
+      select.addEventListener("change", () => {
+        const selected = stockItems.find(i => i.id === select.value);
+        unit.textContent = selected?.unitLabel || "";
+      });
+      select.dispatchEvent(new Event('change'));
+
+      row.appendChild(select);
+      row.appendChild(qty);
+      row.appendChild(unit);
+      container.appendChild(row);
+    }
+
+    window.saveRecipe = async function () {
+      const name = document.getElementById("recipeName").value.trim();
+      if (!name) return alert("Recipe name required");
+
+      const ingredientRows = document.querySelectorAll(".ingredient-row");
+      const ingredients = [];
+      ingredientRows.forEach(row => {
+        const select = row.querySelector("select");
+        const qtyInput = row.querySelector("input");
+        const item = stockItems.find(i => i.id === select.value);
+        const qty = parseFloat(qtyInput.value);
+        if (item && !isNaN(qty) && qty > 0) {
+          ingredients.push({
+            itemId: item.id,
+            name: item.name,
+            qty,
+            unit: item.unitLabel || ""
+          });
+        }
+      });
+
+      if (ingredients.length === 0) return alert("Add at least one valid ingredient");
+
+      await addDoc(collection(db, "recipes"), { name, ingredients });
+      alert("Recipe saved ✅");
+      document.getElementById("recipeName").value = "";
+      document.getElementById("ingredients").innerHTML = "";
+      addIngredientRow();
+      loadRecipes();
+    }
+
+    window.deleteRecipe = async function (id) {
+      if (!confirm("Delete this recipe?")) return;
+      await deleteDoc(doc(db, "recipes", id));
+      loadRecipes();
     }
   </script>
 </body>
