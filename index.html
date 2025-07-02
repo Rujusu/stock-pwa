@@ -48,8 +48,8 @@
       renderSummary();
     }
 
-    async function saveItem(name, qty, low = 5, ok = 10) {
-      await addDoc(stockRef, { name, qty, low, ok });
+    async function saveItem(name, qty, critical = 2, low = 5, ok = 10) {
+      await addDoc(stockRef, { name, qty, critical, low, ok });
       loadStock();
     }
 
@@ -59,9 +59,9 @@
       loadStock();
     }
 
-    async function updateThresholds(id, low, ok) {
+    async function updateThresholds(id, critical, low, ok) {
       const itemRef = doc(db, 'stock', id);
-      await updateDoc(itemRef, { low, ok });
+      await updateDoc(itemRef, { critical, low, ok });
       loadStock();
     }
 
@@ -72,8 +72,8 @@
     }
 
     function getStatusClass(item) {
-      if (item.qty < item.low) return 'critical';
-      if (item.qty < item.ok) return 'low';
+      if (item.qty < item.critical) return 'critical';
+      if (item.qty < item.low) return 'low';
       return 'ok';
     }
 
@@ -88,8 +88,9 @@
           <td>${item.name}</td>
           <td>${item.qty}</td>
           <td>
-            <input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"> Low<br>
-            <input type="number" value="${item.ok}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'ok')"> OK
+            <label>Critical:<input type="number" value="${item.critical}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'critical')"></label><br>
+            <label>Low:<input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"></label><br>
+            <label>OK:<input type="number" value="${item.ok}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'ok')"></label>
           </td>
           <td>
             <button onclick="changeQty('${item.id}', ${item.qty}, 1)">+</button>
@@ -112,12 +113,14 @@
     async function addItem() {
       const name = document.getElementById("itemName").value.trim();
       const qty = parseInt(document.getElementById("itemQty").value);
+      const critical = parseInt(document.getElementById("criticalQty").value);
       const low = parseInt(document.getElementById("lowQty").value);
       const ok = parseInt(document.getElementById("okQty").value);
-      if (!name || isNaN(qty) || isNaN(low) || isNaN(ok)) return alert("Enter valid inputs");
-      await saveItem(name, qty, low, ok);
+      if (!name || isNaN(qty) || isNaN(critical) || isNaN(low) || isNaN(ok)) return alert("Enter valid inputs");
+      await saveItem(name, qty, critical, low, ok);
       document.getElementById("itemName").value = "";
       document.getElementById("itemQty").value = 1;
+      document.getElementById("criticalQty").value = 2;
       document.getElementById("lowQty").value = 5;
       document.getElementById("okQty").value = 10;
     }
@@ -148,9 +151,10 @@
     window.updateItemThreshold = async function (id, value, type) {
       const item = stock.find(i => i.id === id);
       if (!item) return;
+      const critical = type === 'critical' ? parseInt(value) : item.critical;
       const low = type === 'low' ? parseInt(value) : item.low;
       const ok = type === 'ok' ? parseInt(value) : item.ok;
-      await updateThresholds(id, low, ok);
+      await updateThresholds(id, critical, low, ok);
     }
 
     document.getElementById("addBtn").addEventListener("click", addItem);
@@ -164,6 +168,7 @@
 
   <label>Item Name: <input id="itemName" type="text"></label>
   <label>Quantity: <input id="itemQty" type="number" value="1"></label>
+  <label>Critical: <input id="criticalQty" type="number" value="2"></label>
   <label>Low: <input id="lowQty" type="number" value="5"></label>
   <label>OK: <input id="okQty" type="number" value="10"></label>
   <button id="addBtn">Add Item</button>
