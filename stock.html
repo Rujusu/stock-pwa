@@ -91,7 +91,7 @@
     let currentRole = "staff";
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) return location.href = 'https://rujusu.github.io/stock-pwa/';
+      if (!user) return location.href = 'index.html';
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       currentRole = userDoc.exists() ? userDoc.data().role : 'staff';
       document.getElementById("app").classList.remove("hidden");
@@ -245,7 +245,7 @@
 
     document.getElementById("logoutBtn").addEventListener("click", async () => {
       await signOut(auth);
-      location.href = 'https://rujusu.github.io/stock-pwa/';
+      document.getElementById("app").classList.add("hidden");
     });
 
     document.getElementById("addItemBtn").addEventListener("click", addItem);
