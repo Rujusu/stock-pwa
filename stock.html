@@ -91,7 +91,7 @@
     let currentRole = "staff";
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) return location.href = 'index.html';
+      if (!user) return location.href = 'https://rujusu.github.io/stock-pwa/';
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       currentRole = userDoc.exists() ? userDoc.data().role : 'staff';
       document.getElementById("app").classList.remove("hidden");
