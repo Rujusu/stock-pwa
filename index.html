@@ -49,7 +49,6 @@
       <label>Low: <input id="lowQty" type="number" value="5"></label>
       <label>Category: <input id="itemCategory" type="text" placeholder="e.g. Drinks"></label>
       <button id="addItemBtn">Add Item</button>
-      <button onclick="location.href='recipes.html'">Go to Recipes</button>
     </div>
 
     <p>
@@ -167,19 +166,19 @@
       filtered.forEach((item) => {
         const row = document.createElement("tr");
         row.className = getStatusClass(item);
-        row.innerHTML = 
+        row.innerHTML = `
           <td>${item.name}<br><small>${item.category || "Uncategorized"}</small></td>
           <td>${item.qty} × ${item.unitValue || 1}${item.unitLabel ? ' ' + item.unitLabel : ''} = <b>${item.total || item.qty}${item.unitLabel ? ' ' + item.unitLabel : ''}</b></td>
           <td>
-            ${currentRole === 'admin' ? 
+            ${currentRole === 'admin' ? `
             <label>Critical:<input type="number" value="${item.critical}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'critical')"></label><br>
-            <label>Low:<input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"></label> : '-'}
+            <label>Low:<input type="number" value="${item.low}" min="0" style="width:50px" onchange="updateItemThreshold('${item.id}', this.value, 'low')"></label>` : '-'}
           </td>
           <td>
             <button onclick="changeQty('${item.id}', ${item.qty}, 1)">+</button>
             <button onclick="changeQty('${item.id}', ${item.qty}, -1)">-</button>
-            ${currentRole === 'admin' ? <button onclick="removeItem('${item.id}')">Delete</button> : ''}
-          </td>;
+            ${currentRole === 'admin' ? `<button onclick="removeItem('${item.id}')">Delete</button>` : ''}
+          </td>`;
         tbody.appendChild(row);
       });
     }
@@ -190,7 +189,7 @@
         const cls = getStatusClass(item);
         summary[cls]++;
       });
-      document.getElementById("summary").innerText = Critical: ${summary.critical} | Low: ${summary.low} | OK: ${summary.ok};
+      document.getElementById("summary").innerText = `Critical: ${summary.critical} | Low: ${summary.low} | OK: ${summary.ok}`;
     }
 
     window.addItem = async function () {
