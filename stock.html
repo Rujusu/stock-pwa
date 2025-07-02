@@ -9,7 +9,7 @@
     }
   </script>
   <meta charset="UTF-8">
-  <title>Stock Counter with Login</title>
+  <title>Stock Counter</title>
   <style>
     body { font-family: Arial; padding: 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
@@ -22,13 +22,6 @@
   </style>
 </head>
 <body>
-  <div id="loginForm">
-    <h2>Login</h2>
-    <input id="email" type="email" placeholder="Email"><br>
-    <input id="password" type="password" placeholder="Password"><br>
-    <button id="loginBtn">Login</button>
-  </div>
-
   <div id="app" class="hidden">
     <h1>Stock Counting System</h1>
     <button id="logoutBtn" class="hidden">Logout</button>
@@ -76,7 +69,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
@@ -95,8 +88,17 @@
     let stock = [];
     let activeCategory = "All";
     let searchQuery = "";
-    let currentUser = null;
     let currentRole = "staff";
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return location.href = 'index.html';
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      currentRole = userDoc.exists() ? userDoc.data().role : 'staff';
+      document.getElementById("app").classList.remove("hidden");
+      document.getElementById("logoutBtn").classList.remove("hidden");
+      if (currentRole === 'admin') document.getElementById("adminTools").classList.remove("hidden");
+      loadStock();
+    });
 
     async function loadStock() {
       stock = [];
@@ -241,27 +243,9 @@
       renderSummary();
     }
 
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      try {
-        const result = await signInWithEmailAndPassword(auth, email, password);
-        currentUser = result.user;
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        currentRole = userDoc.exists() ? userDoc.data().role : 'staff';
-        document.getElementById("loginForm").classList.add("hidden");
-        document.getElementById("app").classList.remove("hidden");
-        document.getElementById("logoutBtn").classList.remove("hidden");
-        if (currentRole === 'admin') document.getElementById("adminTools").classList.remove("hidden");
-        loadStock();
-      } catch (e) {
-        alert("Login failed: " + e.message);
-      }
-    });
-
     document.getElementById("logoutBtn").addEventListener("click", async () => {
       await signOut(auth);
-      location.reload();
+      location.href = 'index.html';
     });
 
     document.getElementById("addItemBtn").addEventListener("click", addItem);
