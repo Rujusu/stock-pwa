@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Select Item from Stock</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    label, select { font-size: 16px; margin: 10px 0; display: block; }
+  </style>
+</head>
+<body>
+  <h2>Select an Item from Stock</h2>
+  <label for="stockItems">Choose an item:</label>
+  <select id="stockItems">
+    <option disabled selected>Loading...</option>
+  </select>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
+      authDomain: "pos-system-f6930.firebaseapp.com",
+      projectId: "pos-system-f6930",
+      storageBucket: "pos-system-f6930.appspot.com",
+      messagingSenderId: "753361295709",
+      appId: "1:753361295709:web:bbb5e062470a9d9a94b0b4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const dropdown = document.getElementById('stockItems');
+    const stockRef = collection(db, 'stock');
+
+    async function loadStockNames() {
+      const snapshot = await getDocs(stockRef);
+      dropdown.innerHTML = '';
+      snapshot.forEach(doc => {
+        const item = doc.data();
+        const option = document.createElement('option');
+        option.value = item.name;
+        option.textContent = item.name;
+        dropdown.appendChild(option);
+      });
+    }
+
+    loadStockNames();
+  </script>
+</body>
+</html>
