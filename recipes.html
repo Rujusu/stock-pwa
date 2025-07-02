@@ -5,23 +5,26 @@
   <title>Recipes</title>
   <style>
     body { font-family: Arial; padding: 20px; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-  <h1>Recipe Management (Admin Only)</h1>
-  <button onclick="location.href='stock.html'">Stock</button>
-
-  <p>
-    <label for="itemSelect">Select an item:</label>
-    <select id="itemSelect">
-      <option>Loading...</option>
-    </select>
-  </p>
+  <div id="app" class="hidden">
+    <h1>Recipe Management (Admin Only)</h1>
+    <button onclick="location.href='stock.html'">Stock</button>
+    <button id="logoutBtn">Logout</button>
+    <p>
+      <label for="itemSelect">Select an item:</label>
+      <select id="itemSelect">
+        <option>Loading...</option>
+      </select>
+    </p>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDBFg4ymrKuW1M6hETjsVOt-eB7_7Gohcw",
@@ -36,12 +39,20 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+    const appDiv = document.getElementById("app");
+
     onAuthStateChanged(auth, async (user) => {
       if (!user) return location.href = 'index.html';
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const role = userDoc.exists() ? userDoc.data().role : 'staff';
       if (role !== 'admin') return location.href = 'index.html';
+      appDiv.classList.remove("hidden");
       loadItemNames();
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await signOut(auth);
+      appDiv.classList.add("hidden");
     });
 
     async function loadItemNames() {
