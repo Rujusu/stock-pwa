@@ -3,22 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <title>POS System Login</title>
+  <link rel="manifest" href="manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('✅ Service Worker registered!'));
+    }
+  </script>
   <style>
     body { font-family: Arial; margin: 0; display: flex; height: 100vh; }
-    .sidebar { width: 200px; background: #f4f4f4; padding: 20px; display: none; }
+    .sidebar { width: 200px; background: #f4f4f4; padding: 20px; }
     .main { flex-grow: 1; padding: 20px; }
     .hidden { display: none; }
     button { margin-top: 10px; padding: 6px 12px; }
   </style>
 </head>
 <body>
-  <div class="sidebar" id="sidebar">
+  <div class="sidebar hidden" id="sidebar">
     <h3>Menu</h3>
     <ul id="menuList"></ul>
     <button id="logoutBtn">Logout</button>
   </div>
 
-  <div class="main">
+  <div class="main hidden" id="mainPanel">
     <div id="loginForm">
       <h2>Login</h2>
       <input id="email" type="email" placeholder="Email"><br>
@@ -45,9 +52,22 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    const loginForm = document.getElementById("loginForm");
     const sidebar = document.getElementById("sidebar");
-    const menuList = document.getElementById("menuList");
+    const mainPanel = document.getElementById("mainPanel");
+    const loginForm = document.getElementById("loginForm");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        sidebar.classList.add("hidden");
+        mainPanel.classList.remove("hidden");
+        loginForm.classList.remove("hidden");
+        return;
+      }
+
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const role = userDoc.exists() ? userDoc.data().role : 'staff';
+      showMenu(role);
+    });
 
     document.getElementById("loginBtn").addEventListener("click", async () => {
       const email = document.getElementById("email").value;
@@ -69,7 +89,10 @@
 
     function showMenu(role) {
       loginForm.classList.add("hidden");
-      sidebar.style.display = "block";
+      sidebar.classList.remove("hidden");
+      mainPanel.classList.remove("hidden");
+
+      const menuList = document.getElementById("menuList");
       menuList.innerHTML = "";
 
       const stockLi = document.createElement("li");
@@ -82,15 +105,6 @@
         menuList.appendChild(recipeLi);
       }
     }
-
-    // Optional: Auto-login support
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const role = userDoc.exists() ? userDoc.data().role : 'staff';
-        showMenu(role);
-      }
-    });
   </script>
 </body>
 </html>
